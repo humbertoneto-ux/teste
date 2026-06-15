@@ -1,0 +1,597 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  Trophy, Medal, Star, ChevronRight, CheckCircle, XCircle, 
+  Map, Play, RotateCcw, FileText, Award, AlertTriangle, ArrowLeft, Download
+} from 'lucide-react';
+
+// --- CONFIGURAÇÕES DE GAMIFICAÇÃO ---
+const RANKS = [
+  { name: 'Bronze', minXp: 0, color: 'text-orange-700', bg: 'bg-orange-100', border: 'border-orange-700', shadow: 'shadow-orange-900/50' },
+  { name: 'Prata', minXp: 150, color: 'text-slate-400', bg: 'bg-slate-100', border: 'border-slate-400', shadow: 'shadow-slate-500/50' },
+  { name: 'Ouro', minXp: 300, color: 'text-yellow-500', bg: 'bg-yellow-100', border: 'border-yellow-500', shadow: 'shadow-yellow-600/50' },
+  { name: 'Platina', minXp: 450, color: 'text-cyan-600', bg: 'bg-cyan-100', border: 'border-cyan-600', shadow: 'shadow-cyan-700/50' },
+  { name: 'Diamante', minXp: 600, color: 'text-blue-500', bg: 'bg-blue-100', border: 'border-blue-500', shadow: 'shadow-blue-600/50' },
+  { name: 'Rubi', minXp: 750, color: 'text-rose-600', bg: 'bg-rose-100', border: 'border-rose-600', shadow: 'shadow-rose-700/50' },
+];
+
+const XP_CORRECT = 15;
+const XP_WRONG = -5;
+
+// --- DADOS DO JOGO (8 Blocos x 7 Questões = 56 Questões) ---
+const GAME_DATA = [
+  {
+    id: 'figura_plana',
+    title: 'Figura Plana',
+    color: 'from-blue-400 to-blue-600',
+    icon: '📏',
+    questions: [
+      { text: "O que caracteriza uma Figura Plana?", options: ["Possui apenas duas dimensões: comprimento e largura.", "Possui três dimensões, incluindo profundidade.", "É qualquer linha desenhada no papel.", "Sempre possui volume."], correct: 0 },
+      { text: "Verdadeiro ou Falso: Um desenho de um triângulo em uma folha de papel é uma figura plana.", options: ["Verdadeiro", "Falso"], correct: 0 },
+      { text: "Exercício: Se você desenhar o contorno da sua mão no caderno, você criou uma...", options: ["Figura Não Plana", "Figura Espacial", "Figura Plana", "Figura com Volume"], correct: 2 },
+      { text: "Qual das alternativas abaixo representa uma figura plana?", options: ["Uma bola de futebol", "Uma caixa de sapato", "Uma folha de sulfite", "Um dado escolar"], correct: 2 },
+      { text: "As figuras planas são chamadas de bidimensionais porque possuem:", options: ["1 dimensão", "2 dimensões", "3 dimensões", "4 dimensões"], correct: 1 },
+      { text: "Identifique a figura plana:", options: ["Cubo", "Esfera", "Círculo", "Pirâmide"], correct: 2 },
+      { text: "Situação: João quer calcular a área do piso do seu quarto. O piso é considerado uma figura:", options: ["Plana, pois ele quer saber a superfície.", "Não plana, pois tem paredes.", "Espacial, pois ele caminha sobre ele.", "Unidimensional."], correct: 0 }
+    ]
+  },
+  {
+    id: 'figura_nao_plana',
+    title: 'Figura Não Plana',
+    color: 'from-purple-400 to-purple-600',
+    icon: '📦',
+    questions: [
+      { text: "O que caracteriza uma Figura Não Plana (Espacial)?", options: ["Possui apenas 2 dimensões.", "Não ocupa lugar no espaço.", "Possui 3 dimensões: comprimento, largura e profundidade/altura.", "É sempre formada por linhas curvas."], correct: 2 },
+      { text: "Qual objeto do dia a dia é um ótimo exemplo de figura não plana?", options: ["Um tapete bem fino", "Uma fotografia", "Uma lata de refrigerante", "A tela do celular apagada"], correct: 2 },
+      { text: "Verdadeiro ou Falso: Uma figura não plana possui volume.", options: ["Verdadeiro", "Falso"], correct: 0 },
+      { text: "Interativo: Se você empilhar vários quadrados (figuras planas) de papel, um em cima do outro, o que você começa a formar?", options: ["Um triângulo", "Uma figura com volume (não plana)", "Um círculo plano", "Uma linha"], correct: 1 },
+      { text: "Qual dessas opções é uma figura geométrica espacial (não plana)?", options: ["Quadrado", "Triângulo", "Cilindro", "Losango"], correct: 2 },
+      { text: "Uma caixa de sapatos lembra qual figura geométrica não plana?", options: ["Paralelepípedo", "Esfera", "Cone", "Pirâmide"], correct: 0 },
+      { text: "Exercício: Qual das características abaixo NÃO pertence às figuras não planas?", options: ["Possuem vértices, arestas e faces.", "Ocupam lugar no espaço.", "Possuem volume.", "Podem ser desenhadas perfeitamente em apenas 2 dimensões reais."], correct: 3 }
+    ]
+  },
+  {
+    id: 'poligono',
+    title: 'Polígonos',
+    color: 'from-emerald-400 to-emerald-600',
+    icon: '⬡',
+    questions: [
+      { text: "Teoria: O que é um Polígono?", options: ["Uma figura plana, fechada, formada apenas por segmentos de reta que não se cruzam.", "Qualquer figura fechada.", "Uma figura com lados curvos.", "Uma figura em 3D com muitas faces."], correct: 0 },
+      { text: "Um círculo é considerado um polígono?", options: ["Sim, pois é plano e fechado.", "Não, pois possui contorno curvo, e não segmentos de reta.", "Sim, é um polígono infinito.", "Depende do tamanho do círculo."], correct: 1 },
+      { text: "Qual é o menor número de lados que um polígono pode ter?", options: ["1", "2", "3", "4"], correct: 2 },
+      { text: "Como se chama um polígono de 5 lados?", options: ["Hexágono", "Heptágono", "Pentágono", "Octógono"], correct: 2 },
+      { text: "Exercício: Observe a letra 'X' desenhada em linhas retas. Ela é um polígono?", options: ["Sim, pois tem linhas retas.", "Não, pois as linhas se cruzam no meio.", "Sim, é um polígono em formato de cruz.", "Não, pois não é plana."], correct: 1 },
+      { text: "Os pontos de encontro dos lados de um polígono são chamados de:", options: ["Arestas", "Diagonais", "Faces", "Vértices"], correct: 3 },
+      { text: "Interativo: Um tabuleiro de xadrez todo possui a forma de um polígono regular de 4 lados. Que polígono é esse?", options: ["Retângulo", "Losango", "Quadrado", "Trapézio"], correct: 2 }
+    ]
+  },
+  {
+    id: 'triangulo',
+    title: 'Triângulo',
+    color: 'from-yellow-400 to-orange-500',
+    icon: '△',
+    questions: [
+      { text: "Quantos lados, vértices e ângulos internos tem um triângulo?", options: ["4 de cada.", "3 de cada.", "2 lados, 3 vértices e 3 ângulos.", "3 lados, mas 4 ângulos."], correct: 1 },
+      { text: "Um triângulo que possui todos os três lados com medidas iguais é chamado de:", options: ["Escaleno", "Isósceles", "Equilátero", "Retângulo"], correct: 2 },
+      { text: "Qual a soma das medidas dos ângulos internos de QUALQUER triângulo?", options: ["90 graus", "180 graus", "360 graus", "270 graus"], correct: 1 },
+      { text: "Exercício: Se um triângulo tem dois lados medindo 5 cm e um lado medindo 8 cm, ele é classificado como:", options: ["Equilátero", "Escaleno", "Isósceles", "Reto"], correct: 2 },
+      { text: "É possível construir um triângulo com lados medindo 2cm, 3cm e 10cm? (Dica: Regra da existência do triângulo)", options: ["Sim, perfeitamente.", "Não, pois um lado é maior que a soma dos outros dois.", "Sim, mas será um triângulo muito fino.", "Não, triângulos só têm lados pares."], correct: 1 },
+      { text: "Como chamamos um triângulo que possui um ângulo de 90 graus (ângulo reto)?", options: ["Triângulo Obtusângulo", "Triângulo Acutângulo", "Triângulo Retângulo", "Triângulo Equilátero"], correct: 2 },
+      { text: "Interativo: Se o perímetro (soma dos lados) de um triângulo equilátero é 30 cm, quanto mede cada lado?", options: ["5 cm", "10 cm", "15 cm", "30 cm"], correct: 1 }
+    ]
+  },
+  {
+    id: 'quadrado',
+    title: 'Quadrado',
+    color: 'from-red-400 to-red-600',
+    icon: '□',
+    questions: [
+      { text: "Quais são as características principais e obrigatórias de um quadrado?", options: ["4 lados iguais, independente dos ângulos.", "4 ângulos retos, independente dos lados.", "4 lados de mesma medida e 4 ângulos retos (90 graus).", "2 lados maiores e 2 menores."], correct: 2 },
+      { text: "Todo quadrado é um retângulo? (Pense na definição de retângulo: ter 4 ângulos retos)", options: ["Verdadeiro, todo quadrado tem 4 ângulos retos.", "Falso, quadrado e retângulo não têm relação."], correct: 0 },
+      { text: "Exercício: O perímetro de um quadrado é 20 cm. Qual a medida de cada lado?", options: ["4 cm", "5 cm", "10 cm", "20 cm"], correct: 1 },
+      { text: "Quantas diagonais possui um quadrado?", options: ["1", "2", "3", "4"], correct: 1 },
+      { text: "A soma dos ângulos internos de um quadrado é:", options: ["180 graus", "270 graus", "360 graus", "90 graus"], correct: 2 },
+      { text: "Interativo: Uma quadra de esportes tem 10m de comprimento e 10m de largura. Qual é o seu formato geométrico da superfície?", options: ["Retângulo não quadrado", "Losango", "Trapézio", "Quadrado"], correct: 3 },
+      { text: "Qual afirmação é FALSA sobre o quadrado?", options: ["Suas diagonais se cruzam no ponto médio.", "Tem 4 vértices.", "Apenas os lados opostos são paralelos.", "É um polígono regular."], correct: 2 }
+    ]
+  },
+  {
+    id: 'retangulo',
+    title: 'Retângulo',
+    color: 'from-indigo-400 to-indigo-600',
+    icon: '▭',
+    questions: [
+      { text: "Qual a principal característica que define um Retângulo?", options: ["Ter 4 lados de tamanhos diferentes.", "Possuir 4 ângulos internos retos (90 graus).", "Ter lados paralelos inclinados.", "Ter a forma de uma pipa."], correct: 1 },
+      { text: "Verdadeiro ou Falso: Todo retângulo é um quadrado.", options: ["Verdadeiro", "Falso, pois o retângulo pode ter lados de tamanhos diferentes, enquanto o quadrado exige lados iguais."], correct: 1 },
+      { text: "Exercício: Um campo de futebol tem 100m de comprimento e 70m de largura. Qual o seu perímetro?", options: ["170 metros", "340 metros", "7000 metros", "140 metros"], correct: 1 },
+      { text: "Sobre as diagonais do retângulo, podemos afirmar que:", options: ["Possuem medidas diferentes.", "Não se cruzam.", "Possuem a mesma medida (são congruentes).", "São 4 diagonais no total."], correct: 2 },
+      { text: "A porta da sua sala de aula costuma ter o formato de qual polígono?", options: ["Losango", "Trapézio", "Retângulo", "Triângulo"], correct: 2 },
+      { text: "Quantos pares de lados paralelos tem um retângulo?", options: ["Nenhum", "1 par", "2 pares", "3 pares"], correct: 2 },
+      { text: "Interativo: Se eu dobrar um retângulo exatamente no meio, unindo os lados opostos, a marca da dobra forma ângulos de quantos graus com a base?", options: ["45 graus", "60 graus", "90 graus", "180 graus"], correct: 2 }
+    ]
+  },
+  {
+    id: 'losango',
+    title: 'Losango',
+    color: 'from-teal-400 to-teal-600',
+    icon: '◇',
+    questions: [
+      { text: "O que define essencialmente um Losango?", options: ["Ter 4 lados com a mesma medida (congruentes).", "Ter 4 ângulos retos.", "Ter apenas 1 par de lados paralelos.", "Ter o formato de um triângulo de ponta-cabeça."], correct: 0 },
+      { text: "A bandeira do Brasil possui uma figura geométrica amarela no centro. Que figura é essa?", options: ["Retângulo", "Losango", "Círculo", "Paralelogramo qualquer"], correct: 1 },
+      { text: "Qual é a principal diferença entre um losango e um quadrado?", options: ["O losango não tem lados iguais.", "O losango não precisa ter os ângulos internos retos (90º), o quadrado sim.", "O quadrado tem 5 lados e o losango 4.", "Não há diferença, são a mesma coisa."], correct: 1 },
+      { text: "Verdadeiro ou Falso: As diagonais de um losango se cruzam formando um ângulo reto (90º).", options: ["Verdadeiro", "Falso"], correct: 0 },
+      { text: "Exercício: Se um losango tem lados medindo 6 cm, qual o seu perímetro?", options: ["12 cm", "18 cm", "24 cm", "36 cm"], correct: 2 },
+      { text: "O losango é classificado como um:", options: ["Triângulo", "Quadrilátero", "Pentágono", "Polígono não plano"], correct: 1 },
+      { text: "Interativo: Ao desenhar uma pipa tradicional (papagaio), você geralmente desenha duas varetas cruzadas (diagonais) e liga as pontas. A forma gerada é um:", options: ["Losango", "Retângulo", "Trapézio", "Círculo"], correct: 0 }
+    ]
+  },
+  {
+    id: 'trapezio',
+    title: 'Trapézio',
+    color: 'from-pink-400 to-pink-600',
+    icon: '⏢',
+    questions: [
+      { text: "O que define um Trapézio no estudo dos polígonos?", options: ["Possuir dois pares de lados paralelos.", "Possuir apenas UM par de lados paralelos (chamados de bases).", "Não possuir nenhum lado paralelo.", "Ter todos os lados de medidas iguais."], correct: 1 },
+      { text: "Como chamamos os lados paralelos do trapézio?", options: ["Pernas", "Lados oblíquos", "Base maior e Base menor", "Diagonais"], correct: 2 },
+      { text: "Um trapézio que possui dois lados não-paralelos com a MESMA medida é chamado de:", options: ["Trapézio Retângulo", "Trapézio Isósceles", "Trapézio Escaleno", "Losango"], correct: 1 },
+      { text: "Verdadeiro ou Falso: Um trapézio retângulo tem dois ângulos retos (90º).", options: ["Verdadeiro", "Falso"], correct: 0 },
+      { text: "Exercício: A base maior de um trapézio mede 10cm, a base menor mede 6cm e os outros dois lados medem 5cm cada. Qual o perímetro?", options: ["21 cm", "26 cm", "30 cm", "16 cm"], correct: 1 },
+      { text: "Quantos vértices possui um trapézio?", options: ["3", "4", "5", "6"], correct: 1 },
+      { text: "Interativo: O formato de uma saia ou da lateral de um abajur clássico lembra muito qual polígono?", options: ["Quadrado", "Círculo", "Trapézio", "Triângulo retângulo"], correct: 2 }
+    ]
+  }
+];
+
+export default function App() {
+  const [gameState, setGameState] = useState('intro'); // intro, map, playing, report
+  const [playerName, setPlayerName] = useState('');
+  const [xp, setXp] = useState(0);
+  const [completedBlocks, setCompletedBlocks] = useState([]);
+  const [currentBlockId, setCurrentBlockId] = useState(null);
+  const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
+  
+  // Respostas salvas para o relatório: { blockId: { qIndex: { correct: boolean, points: number } } }
+  const [reportData, setReportData] = useState({});
+  const [feedback, setFeedback] = useState(null); // 'correct' ou 'wrong'
+  
+  // Efeitos visuais
+  const [xpPopup, setXpPopup] = useState(null);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+
+  // Calcula Rank
+  const currentRank = RANKS.slice().reverse().find(r => xp >= r.minXp) || RANKS[0];
+
+  const startGame = () => {
+    setGameState('map');
+  };
+
+  const startBlock = (blockId) => {
+    setCurrentBlockId(blockId);
+    setCurrentQuestionIdx(0);
+    setGameState('playing');
+  };
+
+  const handleAnswer = (selectedIdx) => {
+    if (feedback !== null) return; // Previne múltiplos cliques
+
+    const block = GAME_DATA.find(b => b.id === currentBlockId);
+    const isCorrect = block.questions[currentQuestionIdx].correct === selectedIdx;
+    
+    // Calcula XP
+    const xpEarned = isCorrect ? XP_CORRECT : XP_WRONG;
+    const newXp = Math.max(0, xp + xpEarned); // XP não fica negativo
+    
+    setXp(newXp);
+    setFeedback(isCorrect ? 'correct' : 'wrong');
+    setXpPopup({ val: xpEarned > 0 ? `+${xpEarned}` : xpEarned, correct: isCorrect });
+
+    // Salva no relatório
+    setReportData(prev => ({
+      ...prev,
+      [currentBlockId]: {
+        ...(prev[currentBlockId] || {}),
+        [currentQuestionIdx]: { isCorrect, xpEarned }
+      }
+    }));
+
+    // Passa para a próxima após delay
+    setTimeout(() => {
+      setFeedback(null);
+      setXpPopup(null);
+      
+      if (currentQuestionIdx < block.questions.length - 1) {
+        setCurrentQuestionIdx(prev => prev + 1);
+      } else {
+        // Fim do bloco
+        if (!completedBlocks.includes(currentBlockId)) {
+          setCompletedBlocks(prev => [...prev, currentBlockId]);
+        }
+        setGameState('map');
+      }
+    }, 1500);
+  };
+
+  const generateReport = () => {
+    setGameState('report');
+  };
+
+  const resetGame = () => {
+    setGameState('intro');
+    setXp(0);
+    setCompletedBlocks([]);
+    setReportData({});
+  };
+
+  // ---- COMPONENTES DE UI ----
+
+  const renderHeader = () => (
+    <div className="bg-white shadow-md p-4 flex justify-between items-center rounded-b-2xl mb-6 mx-4">
+      <div className="flex items-center gap-2">
+        <div className="bg-indigo-600 text-white p-2 rounded-lg font-bold flex items-center gap-2">
+          <Star size={20} className="text-yellow-300" fill="currentColor"/> 
+          {xp} XP
+        </div>
+        {xpPopup && (
+          <div className={`font-bold animate-bounce ${xpPopup.correct ? 'text-green-500' : 'text-red-500'}`}>
+            {xpPopup.val}
+          </div>
+        )}
+      </div>
+      
+      <div className="text-xl font-black text-indigo-800 tracking-wider">
+        GEOMETRIA<span className="text-pink-500">MASTER</span>
+      </div>
+
+      <div className={`px-4 py-2 rounded-full font-bold flex items-center gap-2 border-2 ${currentRank.bg} ${currentRank.color} ${currentRank.border}`}>
+        <Trophy size={18} />
+        {currentRank.name}
+      </div>
+    </div>
+  );
+
+  const renderIntroView = () => (
+    <div className="flex flex-col items-center justify-center min-h-[70vh] text-center px-4">
+      <div className="relative">
+        <Trophy size={120} className="text-yellow-400 drop-shadow-2xl mb-6" fill="#FDE047" />
+        <Star size={40} className="absolute -top-4 -right-4 text-pink-500 animate-spin-slow" fill="currentColor" />
+        <Star size={30} className="absolute bottom-4 -left-6 text-blue-500 animate-pulse" fill="currentColor" />
+      </div>
+      
+      <h1 className="text-5xl md:text-6xl font-black text-white drop-shadow-lg mb-4 uppercase tracking-tight">
+        Geometria <br/><span className="text-yellow-300">Master</span>
+      </h1>
+      
+      <p className="text-xl text-indigo-100 max-w-2xl mb-6 bg-indigo-900/40 p-6 rounded-2xl backdrop-blur-sm border border-indigo-400/30">
+        Bem-vindo, aluno do 6º Ano! Prepare-se para uma jornada pelos Polígonos e Figuras Geométricas.
+        <br/><br/>
+        🎯 <strong>Missão:</strong> Conclua os 8 blocos de atividades.<br/>
+        ⭐ <strong>XP:</strong> Acertos dão +{XP_CORRECT} XP. Erros tiram {Math.abs(XP_WRONG)} XP.<br/>
+        🏅 <strong>Evolução:</strong> Suba seu ranking de <span className="text-orange-300">Bronze</span> até o lendário <span className="text-rose-400">Rubi</span>!
+      </p>
+
+      <input 
+        type="text" 
+        placeholder="Digite seu nome (opcional)" 
+        value={playerName}
+        onChange={(e) => setPlayerName(e.target.value)}
+        className="mb-8 px-6 py-3 rounded-full text-lg text-indigo-900 font-bold focus:outline-none focus:ring-4 focus:ring-yellow-300 w-full max-w-sm text-center shadow-lg"
+      />
+
+      <button 
+        onClick={startGame}
+        className="bg-gradient-to-b from-yellow-300 to-yellow-500 hover:from-yellow-400 hover:to-yellow-600 text-yellow-900 text-2xl font-black py-4 px-12 rounded-full shadow-xl hover:scale-105 transition-all flex items-center gap-3 border-4 border-yellow-200"
+      >
+        <Play fill="currentColor" />
+        INICIAR AVENTURA
+      </button>
+    </div>
+  );
+
+  const renderMapView = () => {
+    const allCompleted = completedBlocks.length === GAME_DATA.length;
+
+    return (
+      <div className="max-w-4xl mx-auto px-4 pb-12">
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-black text-white drop-shadow-md flex items-center justify-center gap-3">
+            <Map className="text-yellow-300" size={32} />
+            Mapa de Missões
+          </h2>
+          <p className="text-indigo-100 mt-2">Escolha um bloco para treinar. Conclua os 8 para gerar seu relatório final!</p>
+          <div className="mt-4 inline-block bg-white/20 backdrop-blur-sm px-6 py-2 rounded-full text-white font-bold border border-white/30">
+            Progresso: {completedBlocks.length} / {GAME_DATA.length}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+          {GAME_DATA.map((block) => {
+            const isDone = completedBlocks.includes(block.id);
+            return (
+              <button
+                key={block.id}
+                onClick={() => startBlock(block.id)}
+                className={`relative group h-40 flex flex-col items-center justify-center rounded-3xl p-4 transition-all duration-300 transform hover:-translate-y-2 hover:shadow-2xl border-4 ${isDone ? 'bg-indigo-900/80 border-green-400' : `bg-gradient-to-br ${block.color} border-white/20 hover:border-white`}`}
+              >
+                {isDone && (
+                  <div className="absolute -top-3 -right-3 bg-green-500 text-white rounded-full p-1 shadow-lg border-2 border-white z-10">
+                    <CheckCircle size={24} fill="currentColor" className="text-green-100" />
+                  </div>
+                )}
+                
+                <div className={`text-5xl mb-3 ${isDone ? 'opacity-50 grayscale' : 'drop-shadow-lg group-hover:scale-110 transition-transform'}`}>
+                  {block.icon}
+                </div>
+                <div className={`font-bold text-center leading-tight ${isDone ? 'text-indigo-200' : 'text-white drop-shadow-md'}`}>
+                  {block.title}
+                </div>
+                
+                {isDone ? (
+                  <div className="text-xs mt-2 bg-green-500/20 text-green-300 px-3 py-1 rounded-full border border-green-500/50">
+                    Concluído
+                  </div>
+                ) : (
+                  <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 rounded-2xl transition-opacity"></div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {allCompleted && (
+          <div className="mt-12 text-center animate-fade-in-up">
+            <button 
+              onClick={generateReport}
+              className="bg-gradient-to-r from-emerald-400 to-emerald-600 text-white text-xl font-bold py-4 px-8 rounded-full shadow-xl hover:scale-105 transition-all border-4 border-emerald-200 flex items-center gap-3 mx-auto"
+            >
+              <FileText />
+              VER RELATÓRIO FINAL
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderPlayingView = () => {
+    const block = GAME_DATA.find(b => b.id === currentBlockId);
+    const question = block.questions[currentQuestionIdx];
+
+    return (
+      <div className="max-w-3xl mx-auto px-4 pb-12">
+        <button 
+          onClick={() => setGameState('map')}
+          className="mb-4 flex items-center gap-2 text-indigo-100 hover:text-white transition-colors font-semibold"
+        >
+          <ArrowLeft size={20} /> Voltar ao Mapa
+        </button>
+
+        <div className="bg-white rounded-3xl shadow-2xl overflow-hidden border-4 border-indigo-200">
+          <div className={`bg-gradient-to-r ${block.color} p-6 text-white relative`}>
+            <div className="flex justify-between items-center mb-4">
+              <span className="bg-black/20 px-4 py-1 rounded-full font-bold text-sm tracking-wider uppercase">
+                {block.title}
+              </span>
+              <span className="font-bold text-lg">
+                Questão {currentQuestionIdx + 1} de {block.questions.length}
+              </span>
+            </div>
+            
+            {/* Progress bar */}
+            <div className="w-full bg-black/20 h-3 rounded-full overflow-hidden">
+              <div 
+                className="bg-white h-full transition-all duration-500 rounded-full"
+                style={{ width: `${((currentQuestionIdx + 1) / block.questions.length) * 100}%` }}
+              ></div>
+            </div>
+          </div>
+
+          <div className="p-8">
+            <h3 className="text-2xl font-bold text-indigo-900 mb-8 leading-snug">
+              {question.text}
+            </h3>
+
+            <div className="flex flex-col gap-4">
+              {question.options.map((opt, idx) => {
+                let btnStateClass = "bg-slate-50 hover:bg-indigo-50 border-slate-200 hover:border-indigo-300 text-slate-700";
+                
+                if (feedback !== null) {
+                  if (idx === question.correct) {
+                    btnStateClass = "bg-green-100 border-green-500 text-green-800 ring-4 ring-green-500/20";
+                  } else if (feedback === 'wrong') {
+                    btnStateClass = "bg-slate-50 border-slate-200 text-slate-400 opacity-50";
+                  }
+                }
+
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => handleAnswer(idx)}
+                    disabled={feedback !== null}
+                    className={`w-full text-left p-5 rounded-2xl border-2 transition-all duration-200 font-semibold text-lg flex items-center justify-between group ${btnStateClass}`}
+                  >
+                    <span>{opt}</span>
+                    {feedback === null && <ChevronRight className="text-slate-300 group-hover:text-indigo-400" />}
+                    {feedback !== null && idx === question.correct && <CheckCircle className="text-green-600 animate-bounce" size={28} />}
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Feedback overlay */}
+            {feedback === 'correct' && (
+              <div className="mt-6 p-4 bg-green-100 text-green-800 rounded-xl flex items-center justify-center gap-3 font-bold text-xl border-2 border-green-400 animate-pulse">
+                <CheckCircle size={32} />
+                Mandou bem! +{XP_CORRECT} XP
+              </div>
+            )}
+            {feedback === 'wrong' && (
+              <div className="mt-6 p-4 bg-red-100 text-red-800 rounded-xl flex items-center justify-center gap-3 font-bold text-xl border-2 border-red-400 animate-pulse">
+                <XCircle size={32} />
+                Ops! A resposta certa era a verde. {XP_WRONG} XP
+              </div>
+            )}
+
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderReportView = () => {
+    // Calculando totais
+    let totalQuestions = 56;
+    let correctAnswers = 0;
+    let wrongAnswers = 0;
+
+    Object.values(reportData).forEach(blockQs => {
+      Object.values(blockQs).forEach(q => {
+        if (q.isCorrect) correctAnswers++;
+        else wrongAnswers++;
+      });
+    });
+
+    const accuracy = Math.round((correctAnswers / totalQuestions) * 100) || 0;
+
+    const handleDownloadPDF = () => {
+      setIsGeneratingPdf(true);
+      const element = document.getElementById('conteudo-relatorio-pdf');
+      
+      const generatePDF = () => {
+        const opt = {
+          margin:       [10, 10, 10, 10], // Margens do PDF
+          filename:     `Relatorio_Geometria_${playerName || 'Aluno'}.pdf`,
+          image:        { type: 'jpeg', quality: 0.98 },
+          html2canvas:  { scale: 2, useCORS: true }, // scale 2 para alta resolução
+          jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+        
+        window.html2pdf().set(opt).from(element).save().then(() => {
+          setIsGeneratingPdf(false);
+        });
+      };
+
+      // Injeta a biblioteca html2pdf dinamicamente se ainda não existir
+      if (!window.html2pdf) {
+        const script = document.createElement('script');
+        script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
+        script.onload = generatePDF;
+        document.head.appendChild(script);
+      } else {
+        generatePDF();
+      }
+    };
+
+    return (
+      <div className="max-w-4xl mx-auto px-4 pb-12">
+        
+        {/* CONTAINER DO PDF - Este é o elemento que será convertido em arquivo */}
+        <div id="conteudo-relatorio-pdf" className="bg-white rounded-3xl shadow-2xl p-8 md:p-12 border-8 border-indigo-100 relative overflow-hidden">
+          
+          <div className="absolute top-0 left-0 w-full h-40 bg-gradient-to-r from-indigo-500 to-purple-600"></div>
+          
+          <div className="relative z-10 flex flex-col items-center">
+            <div className={`w-32 h-32 rounded-full flex items-center justify-center border-8 bg-white ${currentRank.border} shadow-2xl mb-4`}>
+              <Award size={64} className={`${currentRank.color}`} />
+            </div>
+            
+            <h2 className="text-4xl font-black text-indigo-900 mb-1">Relatório de Desempenho</h2>
+            {playerName && <p className="text-2xl font-bold text-indigo-600 mb-2">Aluno(a): {playerName}</p>}
+            <p className="text-lg text-slate-500 mb-8">Avaliação de Polígonos - 6º Ano</p>
+
+            <div className={`px-8 py-4 rounded-2xl ${currentRank.bg} border-4 ${currentRank.border} mb-12 flex flex-col items-center shadow-lg transform hover:scale-105 transition-transform`}>
+              <span className={`text-lg font-bold ${currentRank.color} uppercase tracking-widest`}>Rank Final Alcançado</span>
+              <span className={`text-5xl font-black ${currentRank.color}`}>{currentRank.name}</span>
+              <span className="mt-2 font-bold text-slate-700 flex items-center gap-2">
+                <Star className="text-yellow-500" fill="currentColor" size={20} />
+                {xp} XP Acumulados
+              </span>
+            </div>
+
+            <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+              <div className="bg-slate-50 p-6 rounded-2xl text-center border-2 border-slate-100">
+                <div className="text-slate-400 font-bold mb-2 uppercase">Precisão</div>
+                <div className="text-4xl font-black text-indigo-600">{accuracy}%</div>
+              </div>
+              <div className="bg-green-50 p-6 rounded-2xl text-center border-2 border-green-100">
+                <div className="text-green-600/60 font-bold mb-2 uppercase">Acertos</div>
+                <div className="text-4xl font-black text-green-600">{correctAnswers}</div>
+              </div>
+              <div className="bg-red-50 p-6 rounded-2xl text-center border-2 border-red-100">
+                <div className="text-red-600/60 font-bold mb-2 uppercase">Erros</div>
+                <div className="text-4xl font-black text-red-600">{wrongAnswers}</div>
+              </div>
+            </div>
+
+            <div className="w-full">
+              <h3 className="text-2xl font-bold text-indigo-900 mb-6 border-b-2 border-slate-100 pb-4">Detalhamento por Bloco Geométrico</h3>
+              <div className="space-y-4">
+                {GAME_DATA.map(block => {
+                  const bData = reportData[block.id] || {};
+                  let bAcertos = 0;
+                  for (let i = 0; i < 7; i++) {
+                    if (bData[i]?.isCorrect) bAcertos++;
+                  }
+                  
+                  return (
+                    <div key={block.id} className="flex items-center justify-between bg-slate-50 p-4 rounded-xl border border-slate-200">
+                      <div className="flex items-center gap-3">
+                        <span className="text-3xl">{block.icon}</span>
+                        <span className="font-bold text-lg text-slate-700">{block.title}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="bg-white px-3 py-1 rounded-lg font-bold text-indigo-600 shadow-sm border border-slate-200">
+                          {bAcertos} / 7
+                        </div>
+                        {bAcertos === 7 && <Trophy size={24} className="text-yellow-500" fill="currentColor" />}
+                        {bAcertos < 7 && bAcertos >= 4 && <CheckCircle size={24} className="text-green-500" />}
+                        {bAcertos < 4 && <AlertTriangle size={24} className="text-orange-400" />}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* BOTÕES DE AÇÃO - Ficam fora da div do PDF */}
+        <div className="mt-8 flex flex-col md:flex-row justify-center gap-4">
+          <button 
+            onClick={handleDownloadPDF}
+            disabled={isGeneratingPdf}
+            className="bg-indigo-600 text-white font-bold py-4 px-8 rounded-full shadow-lg hover:bg-indigo-700 transition-all flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed transform hover:scale-105"
+          >
+            <Download size={24} />
+            {isGeneratingPdf ? 'Gerando Arquivo PDF...' : 'Baixar Relatório em PDF'}
+          </button>
+          
+          <button 
+            onClick={resetGame}
+            className="bg-white text-indigo-900 font-bold py-4 px-8 rounded-full shadow-lg hover:bg-slate-50 transition-all flex items-center justify-center gap-3 border-2 border-indigo-100"
+          >
+            <RotateCcw size={20} /> Jogar Novamente
+          </button>
+        </div>
+
+      </div>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-indigo-500 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-400 via-indigo-600 to-indigo-900 font-sans selection:bg-pink-400 selection:text-white">
+      {gameState !== 'intro' && renderHeader()}
+      
+      <main className={`pt-4 ${gameState === 'intro' ? 'pt-12' : ''}`}>
+        {gameState === 'intro' && renderIntroView()}
+        {gameState === 'map' && renderMapView()}
+        {gameState === 'playing' && renderPlayingView()}
+        {gameState === 'report' && renderReportView()}
+      </main>
+
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in-up { animation: fadeIn 0.6s ease-out forwards; }
+        .animate-spin-slow { animation: spin 8s linear infinite; }
+      `}} />
+    </div>
+  );
+}
